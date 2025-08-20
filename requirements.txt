@@ -1,0 +1,42 @@
+# Core LangChain and LangGraph dependencies
+langchain-core>=0.3.17
+langchain-openai==0.2.8
+langgraph==0.2.34
+
+# Data validation and modeling
+pydantic==2.9.2
+
+# Configuration management
+pyyaml==6.0.2
+
+# Data processing and Excel handling
+pandas==2.2.3
+python-dateutil==2.9.0.post0
+openpyxl==3.1.5
+
+# Additional dependencies for robust data processing
+numpy==2.1.1
+xlrd==2.0.1
+
+# Testing framework
+pytest==8.3.3
+pytest-asyncio==0.24.0
+
+# Environment management
+python-dotenv==1.0.1
+
+# Regular expressions and text processing
+regex==2024.9.11
+
+# Date parsing utilities
+dateparser==1.2.0
+
+# JSON handling for LLM responses
+jsonschema==4.23.0
+
+# Logging and debugging
+colorlog==6.8.2
+
+# Type checking
+mypy==1.11.2
+types-python-dateutil==2.9.0.20241003
