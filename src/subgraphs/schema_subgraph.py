@@ -68,8 +68,13 @@ class SchemaAnalysisSubgraph:
     def load_file_data(self, state: MedicalDataState) -> dict:
         """Load Excel file and extract headers + sample data"""
         try:
+            print(f"\n📊 LOADING FILE DATA")
+            
             file_path = state.file_path
+            print(f"   📁 File path: {file_path}")
+            
             if not file_path or not os.path.exists(file_path):
+                print(f"   ❌ File not found!")
                 return {
                     "processing_status": "error",
                     "error_log": state.error_log + ["File not found"]
@@ -77,8 +82,10 @@ class SchemaAnalysisSubgraph:
             
             # Read Excel file
             df = pd.read_excel(file_path)
+            print(f"   📊 File loaded successfully: {df.shape[0]} rows, {df.shape[1]} columns")
             
             if df.empty:
+                print(f"   ❌ File is empty!")
                 return {
                     "processing_status": "error", 
                     "error_log": state.error_log + ["Empty file"]
@@ -88,9 +95,20 @@ class SchemaAnalysisSubgraph:
             headers = df.columns.tolist()
             sample_data = df.head(2).to_dict('records')
             
+            print(f"   📋 Column headers ({len(headers)}):")
+            for i, header in enumerate(headers, 1):
+                print(f"      {i:2d}. {header}")
+            
+            print(f"   📋 Sample data (first 2 rows):")
+            for i, row in enumerate(sample_data, 1):
+                print(f"      Row {i}:")
+                for col, val in row.items():
+                    print(f"         {col}: {val}")
+            
             # Save the DataFrame temporarily to a pickle file for later use
             temp_file = f"temp_data_{hash(file_path)}.pkl"
             df.to_pickle(temp_file)
+            print(f"   💾 Saved data to temporary file: {temp_file}")
             
             return {
                 "headers": headers,
@@ -100,6 +118,7 @@ class SchemaAnalysisSubgraph:
             }
             
         except Exception as e:
+            print(f"   ❌ Error loading file: {str(e)}")
             return {
                 "processing_status": "error",
                 "error_log": state.error_log + [f"File loading error: {str(e)}"]
@@ -108,8 +127,12 @@ class SchemaAnalysisSubgraph:
     def analyze_schema(self, state: MedicalDataState) -> dict:
         """Analyze schema using LLM"""
         try:
+            print(f"\n🤖 ANALYZING SCHEMA WITH LLM")
+            
             headers = state.headers
             sample_data = state.sample_data
+            
+            print(f"   📊 Analyzing {len(headers)} columns with {len(sample_data)} sample rows")
             
             # Prepare sample data for LLM
             sample_text = ""
@@ -158,9 +181,13 @@ Respond in JSON format only.
             
             human_message = HumanMessage(content="Analyze the schema and categorize columns.")
             
+            print(f"   🔄 Sending request to GPT-4o...")
+            
             # Get structured response
             structured_llm = self.llm.with_structured_output(SchemaAnalysisResult)
             response = structured_llm.invoke([system_message, human_message])
+            
+            print(f"   ✅ Received LLM analysis for {len(response.columns)} columns")
             
             return {
                 "schema_analysis": response,
@@ -168,6 +195,7 @@ Respond in JSON format only.
             }
             
         except Exception as e:
+            print(f"   ❌ Error during schema analysis: {str(e)}")
             return {
                 "processing_status": "error",
                 "error_log": state.error_log + [f"Schema analysis error: {str(e)}"]
@@ -176,16 +204,41 @@ Respond in JSON format only.
     def categorize_columns(self, state: MedicalDataState) -> dict:
         """Categorize columns based on analysis results"""
         try:
+            print(f"\n📋 CATEGORIZING COLUMNS")
+            
             schema_analysis = state.schema_analysis
             
             rule_based_columns = {}
             llm_columns = []
             
+            print(f"   🔍 Processing {len(schema_analysis.columns)} column analyses:")
+            print(f"   " + "="*60)
+            
             for column_analysis in schema_analysis.columns:
-                if column_analysis.category == "rule_based":
-                    rule_based_columns[column_analysis.column_name] = column_analysis.tool_name
+                col_name = column_analysis.column_name
+                category = column_analysis.category
+                tool_name = column_analysis.tool_name
+                reasoning = column_analysis.reasoning
+                
+                if category == "rule_based":
+                    rule_based_columns[col_name] = tool_name
+                    print(f"   🔧 RULE-BASED: {col_name}")
+                    print(f"      Tool: {tool_name}")
+                    print(f"      Reason: {reasoning}")
                 else:
-                    llm_columns.append(column_analysis.column_name)
+                    llm_columns.append(col_name)
+                    print(f"   🤖 LLM-BASED: {col_name}")
+                    print(f"      Reason: {reasoning}")
+                print(f"   " + "-"*60)
+            
+            print(f"\n   📊 CATEGORIZATION SUMMARY:")
+            print(f"   🔧 Rule-based columns: {len(rule_based_columns)}")
+            for col, tool in rule_based_columns.items():
+                print(f"      • {col} → {tool}")
+            
+            print(f"   🤖 LLM columns: {len(llm_columns)}")
+            for col in llm_columns:
+                print(f"      • {col}")
             
             return {
                 "rule_based_columns": rule_based_columns,
@@ -194,6 +247,7 @@ Respond in JSON format only.
             }
             
         except Exception as e:
+            print(f"   ❌ Error during categorization: {str(e)}")
             return {
                 "processing_status": "error",
                 "error_log": state.error_log + [f"Categorization error: {str(e)}"]
