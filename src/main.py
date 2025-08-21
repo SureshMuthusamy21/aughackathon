@@ -100,6 +100,7 @@ if __name__ == "__main__":
         print(f"Expected location: {env_file}")
     
     # Example usage
-    file_path = r"data\Aug_hackathon_medical_data.xlsx"
+    # file_path = r"data\Aug_hackathon_medical_data.xlsx"
+    file_path =r"data\Aug_hackathon_medical_data - Copy.xlsx"
     result = process_medical_data(file_path)
     print(f"Processing result: {result}")

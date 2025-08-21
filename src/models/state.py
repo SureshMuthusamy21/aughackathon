@@ -14,6 +14,33 @@ class ColumnAnalysis(BaseModel):
 class SchemaAnalysisResult(BaseModel):
     columns: List[ColumnAnalysis]
 
+# Medical Data Review Models
+class MedicalIssue(BaseModel):
+    issue_type: str  # "spelling", "terminology", "missing", "duplicate", "format", "outlier", "other"
+    description: str
+    severity: str  # "low", "medium", "high", "critical"
+    suggested_correction: Optional[str] = None
+
+class RowReview(BaseModel):
+    row_index: int
+    issues: List[MedicalIssue]
+    overall_status: str  # "clean", "needs_review", "needs_correction", "critical"
+
+class BatchReview(BaseModel):
+    batch_id: int
+    reviews: List[RowReview]
+    summary: str
+
+class CorrectedRow(BaseModel):
+    row_index: int
+    corrected_data: Dict[str, Any]
+    corrections_made: List[str]
+
+class BatchCorrection(BaseModel):
+    batch_id: int
+    corrected_rows: List[CorrectedRow]
+    correction_summary: str
+
 # Main State Class - Using separate fields to avoid DataFrame serialization issues
 class MedicalDataState(BaseModel):
     # ----------- Shared State -------------------- #
@@ -33,6 +60,11 @@ class MedicalDataState(BaseModel):
     # Processing Results - Store processed data as list of records
     processed_rule_data: Optional[List[Dict[str, Any]]] = None
     processed_llm_data: Optional[List[Dict[str, Any]]] = None
+    
+    # LLM Batch Processing Results
+    batch_reviews: List[BatchReview] = []
+    batch_corrections: List[BatchCorrection] = []
+    llm_processing_stats: Dict[str, Any] = {}
     
     # Status and Output
     processing_status: str = "initialized"
