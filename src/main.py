@@ -18,64 +18,73 @@ except ImportError:
     from .models.state import MedicalDataState
     from .graphs.main_graph import medical_data_processor
 
-def process_medical_data(file_path: str) -> dict:
+def process_medical_data(file_path: str, verbose: bool = True) -> dict:
     """
     Main entry point for processing medical data
     
     Args:
         file_path: Path to the Excel/CSV file to process
+        verbose: Whether to print progress messages (default: True)
         
     Returns:
         dict: Processing results including output file path and status
     """
     
-    print("=" * 80)
-    print("🏥 MEDICAL DATA PROCESSING SYSTEM STARTED")
-    print("=" * 80)
+    if verbose:
+        print("=" * 80)
+        print("🏥 MEDICAL DATA PROCESSING SYSTEM STARTED")
+        print("=" * 80)
     
     # Check if OpenAI API key is set
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        print("❌ Error: OPENAI_API_KEY environment variable not set")
-        print("Please check your .env file or set the environment variable")
+        if verbose:
+            print("❌ Error: OPENAI_API_KEY environment variable not set")
+            print("Please check your .env file or set the environment variable")
         return {
             "status": "error",
             "message": "OPENAI_API_KEY environment variable not set"
         }
     
-    print(f"✅ OpenAI API key found: {api_key[:10]}...")
+    if verbose:
+        print(f"✅ OpenAI API key found: {api_key[:10]}...")
     
     # Check if file exists
     if not os.path.exists(file_path):
-        print(f"❌ File not found: {file_path}")
+        if verbose:
+            print(f"❌ File not found: {file_path}")
         return {
             "status": "error",
             "message": f"File not found: {file_path}"
         }
     
-    print(f"📁 Input file: {file_path}")
+    if verbose:
+        print(f"📁 Input file: {file_path}")
     
     # Initialize state
     initial_state = MedicalDataState(file_path=file_path)
-    print(f"🏗️  State initialized with file path")
+    if verbose:
+        print(f"🏗️  State initialized with file path")
     
     # Create thread configuration
     config = {"configurable": {"thread_id": "medical_processing_thread"}}
     
     try:
-        print(f"\n🚀 Starting processing workflow...")
+        if verbose:
+            print(f"\n🚀 Starting processing workflow...")
         
         # Run the processing graph
         result = medical_data_processor.invoke(initial_state, config=config)
         
-        print(f"\n✅ Processing completed successfully!")
-        print(f"📊 Final Status: {result.get('processing_status', 'unknown')}")
-        if result.get('output_file_path'):
-            print(f"📄 Output file: {result.get('output_file_path')}")
-        if result.get('error_log'):
-            print(f"⚠️  Errors encountered: {len(result.get('error_log', []))}")
-            for error in result.get('error_log', []):
-                print(f"   - {error}")
+        if verbose:
+            print(f"\n✅ Processing completed successfully!")
+            print(f"📊 Final Status: {result.get('processing_status', 'unknown')}")
+            if result.get('output_file_path'):
+                print(f"📄 Output file: {result.get('output_file_path')}")
+            if result.get('error_log'):
+                print(f"⚠️  Errors encountered: {len(result.get('error_log', []))}")
+                for error in result.get('error_log', []):
+                    print(f"   - {error}")
         
         return {
             "status": result.get("processing_status", "unknown"),
@@ -86,7 +95,8 @@ def process_medical_data(file_path: str) -> dict:
         }
         
     except Exception as e:
-        print(f"❌ Processing failed with error: {str(e)}")
+        if verbose:
+            print(f"❌ Processing failed with error: {str(e)}")
         return {
             "status": "error", 
             "message": f"Processing failed: {str(e)}"
