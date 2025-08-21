@@ -40,7 +40,7 @@ ISSUE TYPES to detect:
 1. SPELLING: Misspelled medical terms, drug names, anatomical references
 2. TERMINOLOGY: Inconsistent medical terminology, non-standard abbreviations
 3. MISSING: Missing critical medical values, incomplete records
-4. DUPLICATE: Duplicate patient records, redundant information
+# 4. DUPLICATE: Duplicate patient records, redundant information
 5. FORMAT: Inconsistent date formats, measurement units, case variations
 6. OUTLIER: Anomalous medical values, impossible measurements, age inconsistencies
 7. OTHER: Any other medical data quality issues
