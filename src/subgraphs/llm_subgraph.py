@@ -21,8 +21,8 @@ except ImportError:
     from .medical_agents import MedicalDataReviewer, MedicalDataCorrector
 
 # Configuration
-BATCH_SIZE = 50
-MAX_WORKERS = 20
+BATCH_SIZE = 5
+MAX_WORKERS = 10
 SLEEP_BETWEEN_BATCHES = 1.0  # 1 second sleep to avoid rate limiting
 MAX_RETRIES = 3
 
