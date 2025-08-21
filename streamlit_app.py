@@ -14,7 +14,7 @@ import logging
 # Suppress PyArrow warnings for cleaner output
 warnings.filterwarnings('ignore', category=UserWarning, module='streamlit')
 logging.getLogger('streamlit.dataframe_util').setLevel(logging.ERROR)
-    
+
 
 # Add src directory to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -74,6 +74,16 @@ st.markdown("""
 
 def main():
     """Main Streamlit application"""
+    
+    # Initialize session state
+    if 'processing_result' not in st.session_state:
+        st.session_state.processing_result = None
+    if 'processing_status' not in st.session_state:
+        st.session_state.processing_status = None
+    if 'uploaded_file_name' not in st.session_state:
+        st.session_state.uploaded_file_name = None
+    if 'df_preview' not in st.session_state:
+        st.session_state.df_preview = None
     
     # Header
     st.markdown("""
@@ -220,132 +230,154 @@ def main():
                 progress_bar.progress(100)
                 status_text.text("✅ Processing completed!")
                 
-                # Display results
-                st.header("📈 Processing Results")
+                # Store results in session state
+                st.session_state.processing_result = result
+                st.session_state.processing_status = "completed"
+                st.session_state.uploaded_file_name = file_path.name
+                st.session_state.df_preview = df_preview
                 
-                if result.get("status") == "error":
-                    st.markdown(f"""
-                    <div class="error-box">
-                        <h4>❌ Processing Failed</h4>
-                        <p>{result.get('message', 'Unknown error occurred')}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                # Clear progress indicators
+                progress_bar.empty()
+                status_text.empty()
+                processing_status.empty()
+                processing_logs.empty()
                 
-                else:
-                    # Success metrics
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    with col1:
-                        st.metric("Status", result.get("status", "Unknown"))
-                    with col2:
-                        rule_cols = len(result.get("rule_based_columns", {}))
-                        st.metric("Rule-based Columns", rule_cols)
-                    with col3:
-                        llm_cols = len(result.get("llm_columns", []))
-                        st.metric("LLM-processed Columns", llm_cols)
-                    with col4:
-                        error_count = len(result.get("errors", []))
-                        st.metric("Errors", error_count)
-                    
-                    # Processing details
-                    if show_details:
-                        # Rule-based columns expander
-                        if result.get("rule_based_columns"):
-                            rule_columns = []
-                            rule_data = result["rule_based_columns"]
-                            
-                            # Handle different possible structures
-                            if isinstance(rule_data, dict):
-                                # Check if it's {tool_name: [column_names]} or {column_name: tool_name}
-                                first_key = next(iter(rule_data.keys()))
-                                first_value = rule_data[first_key]
-                                
-                                if isinstance(first_value, list):
-                                    # Structure: {tool_name: [column_names]}
-                                    for tool, columns in rule_data.items():
-                                        if isinstance(columns, list):
-                                            rule_columns.extend(columns)
-                                        else:
-                                            rule_columns.append(str(columns))
-                                else:
-                                    # Structure: {column_name: tool_name}
-                                    rule_columns = list(rule_data.keys())
-                            elif isinstance(rule_data, list):
-                                rule_columns = rule_data
-                            
-                            if rule_columns:
-                                with st.expander(f"⚙️ Rule-based Processing ({len(rule_columns)} columns)"):
-                                    cols = st.columns(3)
-                                    for i, col in enumerate(rule_columns):
-                                        with cols[i % 3]:
-                                            st.write(f"• {col}")
-                        
-                        # LLM columns expander
-                        if result.get("llm_columns"):
-                            llm_columns = result["llm_columns"]
-                            with st.expander(f"🧠 LLM Processing ({len(llm_columns)} columns)"):
-                                cols = st.columns(3)
-                                for i, col in enumerate(llm_columns):
-                                    with cols[i % 3]:
-                                        st.write(f"• {col}")
-                        
-                        # Errors
-                        if result.get("errors"):
-                            st.subheader("⚠️ Processing Errors")
-                            for i, error in enumerate(result["errors"], 1):
-                                st.error(f"{i}. {error}")
-                    
-                    # Download section
-                    output_file = result.get("output_file")
-                    if output_file and Path(output_file).exists():
-                        st.header("⬇️ Download Processed Data")
-                        
-                        # Load processed data for preview
-                        try:
-                            processed_df = pd.read_excel(output_file)
-                            
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.metric("Processed Rows", len(processed_df))
-                            with col2:
-                                st.metric("Output File Size", f"{Path(output_file).stat().st_size / 1024:.1f} KB")
-                            
-                            # Show comparison
-                            with st.expander("📊 Before vs After Comparison"):
-                                tab1, tab2 = st.tabs(["Original Data", "Processed Data"])
-                                
-                                with tab1:
-                                    st.dataframe(df_preview.head(), use_container_width=True)
-                                
-                                with tab2:
-                                    st.dataframe(processed_df.head(), use_container_width=True)
-                            
-                            # Download button
-                            with open(output_file, "rb") as file:
-                                st.download_button(
-                                    label="📥 Download Processed Excel File",
-                                    data=file.read(),
-                                    file_name=Path(output_file).name,
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                    use_container_width=True
-                                )
-                                
-                        except Exception as e:
-                            st.error(f"❌ Error loading processed file: {str(e)}")
-                    
-                    else:
-                        st.warning("⚠️ No output file generated")
-            
             except Exception as e:
-                progress_bar.progress(0)
-                status_text.text("❌ Processing failed")
-                st.markdown(f"""
-                <div class="error-box">
-                    <h4>❌ Processing Error</h4>
-                    <p>{str(e)}</p>
-                </div>
-                """, unsafe_allow_html=True)
-    
+                st.error(f"❌ Processing failed: {str(e)}")
+                st.session_state.processing_result = None
+                st.session_state.processing_status = "error"
+
+    # Display results from session state (persists across page refreshes)
+    if st.session_state.processing_result is not None:
+        result = st.session_state.processing_result
+        df_preview = st.session_state.df_preview
+        
+        # Display results
+        st.header("📈 Processing Results")
+        
+        if result.get("status") == "error":
+            st.markdown(f"""
+            <div class="error-box">
+                <h4>❌ Processing Failed</h4>
+                <p>{result.get('message', 'Unknown error occurred')}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        else:
+            # Success metrics
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Status", result.get("status", "Unknown"))
+            with col2:
+                rule_cols = len(result.get("rule_based_columns", {}))
+                st.metric("Rule-based Columns", rule_cols)
+            with col3:
+                llm_cols = len(result.get("llm_columns", []))
+                st.metric("LLM-processed Columns", llm_cols)
+            with col4:
+                error_count = len(result.get("errors", []))
+                st.metric("Errors", error_count)
+            
+            # Processing details
+            if show_details:
+                # Rule-based columns expander
+                if result.get("rule_based_columns"):
+                    rule_columns = []
+                    rule_data = result["rule_based_columns"]
+                    
+                    # Handle different possible structures
+                    if isinstance(rule_data, dict):
+                        # Check if it's {tool_name: [column_names]} or {column_name: tool_name}
+                        first_key = next(iter(rule_data.keys()))
+                        first_value = rule_data[first_key]
+                        
+                        if isinstance(first_value, list):
+                            # Structure: {tool_name: [column_names]}
+                            for tool, columns in rule_data.items():
+                                if isinstance(columns, list):
+                                    rule_columns.extend(columns)
+                                else:
+                                    rule_columns.append(str(columns))
+                        else:
+                            # Structure: {column_name: tool_name}
+                            rule_columns = list(rule_data.keys())
+                    elif isinstance(rule_data, list):
+                        rule_columns = rule_data
+                    
+                    if rule_columns:
+                        with st.expander(f"⚙️ Rule-based Processing ({len(rule_columns)} columns)"):
+                            cols = st.columns(3)
+                            for i, col in enumerate(rule_columns):
+                                with cols[i % 3]:
+                                    st.write(f"• {col}")
+                
+                # LLM columns expander
+                if result.get("llm_columns"):
+                    llm_columns = result["llm_columns"]
+                    with st.expander(f"🧠 LLM Processing ({len(llm_columns)} columns)"):
+                        cols = st.columns(3)
+                        for i, col in enumerate(llm_columns):
+                            with cols[i % 3]:
+                                st.write(f"• {col}")
+                
+                # Errors
+                if result.get("errors"):
+                    st.subheader("⚠️ Processing Errors")
+                    for i, error in enumerate(result["errors"], 1):
+                        st.error(f"{i}. {error}")
+            
+            # Download section
+            output_file = result.get("output_file")
+            if output_file and Path(output_file).exists():
+                st.header("⬇️ Download Processed Data")
+                
+                # Load processed data for preview
+                try:
+                    processed_df = pd.read_excel(output_file)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Processed Rows", len(processed_df))
+                    with col2:
+                        st.metric("Output File Size", f"{Path(output_file).stat().st_size / 1024:.1f} KB")
+                    
+                    # Show comparison
+                    with st.expander("📊 Before vs After Comparison"):
+                        tab1, tab2 = st.tabs(["Original Data", "Processed Data"])
+                        
+                        with tab1:
+                            st.dataframe(df_preview.head(), use_container_width=True)
+                        
+                        with tab2:
+                            st.dataframe(processed_df.head(), use_container_width=True)
+                    
+                    # Download button with session state key to prevent refresh
+                    with open(output_file, "rb") as file:
+                        st.download_button(
+                            label="📥 Download Processed Excel File",
+                            data=file.read(),
+                            file_name=Path(output_file).name,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                            key="download_button"
+                        )
+                        
+                except Exception as e:
+                    st.error(f"❌ Error loading processed file: {str(e)}")
+            
+            else:
+                st.warning("⚠️ No output file generated")
+
+    # Add a clear results button to reset session state
+    if st.session_state.processing_result is not None:
+        if st.button("🔄 Clear Results", type="secondary"):
+            st.session_state.processing_result = None
+            st.session_state.processing_status = None
+            st.session_state.uploaded_file_name = None
+            st.session_state.df_preview = None
+            st.rerun()
+
     else:
         # Welcome message when no file is selected
         st.header("👋 Welcome to Medical Data Processing System")
